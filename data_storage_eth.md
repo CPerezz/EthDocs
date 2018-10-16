@@ -256,6 +256,47 @@ Here we have an example.
 
 Note on the example avobe that If L1 changes, it's hash will change, and this will make change the whole path to the root. So it's the perfect way to validate the correctness of any type of data (large ammounts of data also, by using hash functions, the length of the input data doesn't matter).
 
+#### Proving inclusion
+The root of this tree is just a hash — it tells us nothing about the contents of the tree. We can use something called a “Merkle proof” to show that some content is actually part of this tree. For example, let’s prove that `A` is part of the above tree. All we need to do is provide each of `A`’s siblings on the way up, recompute the tree, and make sure everything matches.
+![](https://cdn-images-1.medium.com/max/800/1*HkoTv02wqeG3Y625fKLdBw.png)
+Note that siblings are highlighted in blue.
+
+With just `A`, `H(B)`, and `H(H(C)+H(D))`, we can recompute the original root hash. This is an efficient way to show that `A` **is part of this tree without having to provide the entire tree**.
+
+#### Proving Non-inclusion
+So we can easily prove that something **is** part of the Merkle tree, but what if we want to prove that something **isn’t** part of the tree? Unfortunately, standard Merkle trees don’t give us any good way to do this. We could reveal the entire contents, but that’s sort of defeating the point of using a Merkle tree in the first place.
+
+##Sparse Merkle Trie
+Here’s where sparse Merkle trees come into play. A sparse Merkle tree is like a standard Merkle tree, except the contained data is indexed, and each datapoint is placed at the leaf that corresponds to that datapoint’s index.
+
+As said by Vitalik [here](!%5Bhttps://ethresear.ch/t/optimizing-sparse-merkle-trees/3751%5D):
+>A sparse Merkle tree (SMT) is a data structure useful for storing a key/value map which works as follows. An empty SMT is simply a Merkle tree with 2256 leaves, where every leaf is a zero value. Because every element at the second level of the tree is the same (z2=hash(0,0)), and every element at the third level is the same (z3=hash(z2,z2)) and so forth this can be trivially computed in 256 hashes.
+
+Let’s say we have a Merkle tree with four leaves. We’ll populate this tree with some letters `(A, D)` to demonstrate. The letter `A` is the first letter of the alphabet, so we should put it at the first leaf. Similarly, we can put `D` at the fourth leaf.
+
+So what happens in the second and third leaves? We just leave them empty. More precisely, we put a special value (like `null`) instead of placing a letter.
+
+The tree ends up looking like this:
+![](https://cdn-images-1.medium.com/max/800/1*Y8RySBupKReNJ9I6C3Tqyg.png)
+
+Provin Inclusion stills being the same as it was before as we can see here:
+![](https://cdn-images-1.medium.com/max/800/1*HkoTv02wqeG3Y625fKLdBw.png)
+Again, we’re just providing the siblings, `H(null)` and `H(H(null)+H(D))`, and checking that it matches the root.
+
+#### Proving Non-inclusion
+Here’s where the magic happens. What happens if we want to prove that `C` is not part of this Merkle tree? It’s easy! We know that if `C` were part of the tree, it would be at the third leaf. If `C` isn’t part of the tree, then the third leaf must be null.
+
+All we need is a standard Merkle proof showing the third leaf is `null`
+![](https://cdn-images-1.medium.com/max/800/1*3jte9zF-Jhv_UNRnM29AYw.png)
+This looks just like a standard Merkle proof, except that we’re proving the leaf contains null instead of `C`.
+
+### Drawbacks
+Sparse Merkle trees are really cool because they give us **efficient proofs of non-inclusion**. However, this can also mean they get really, really big. 26 letters isn’t much, but most of the time we’re talking about 2²⁵⁶ hashes, which is a large ammount of data.
+
+Luckily, there are some techniques to efficiently generate Merkle trees. **The key** to these techniques is that these giant sparse Merkle trees are mostly… sparse. **H(null) is a constant value, and so is H(H(null)), etc. etc. Huge chunks of the tree can be cached**.
+
+
+
 ## Patricia Trie.
 
 >Patricia trie is the main trie used in Ethereum to store data. It is a mixture of Radix trie and Merkle trie.
