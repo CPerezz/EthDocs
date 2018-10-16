@@ -221,10 +221,13 @@ To insert a string, we search the tree until we can make no further progress. At
 ##### Some examples of insertion are:
 Root Insertion:
 ![Root Insertion](https://upload.wikimedia.org/wikipedia/commons/3/30/Inserting_the_string_%27water%27_into_a_Patricia_trie.png)
+
 Prefix insertion:
 ![Prefix insertion](https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Insert_%27test%27_into_a_Patricia_trie_when_%27tester%27_exists.png/300px-Insert_%27test%27_into_a_Patricia_trie_when_%27tester%27_exists.png)
+
 Parent slicing while splitting:
 ![Parent slicing while splitting](https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Inserting_the_word_%27team%27_into_a_Patricia_trie_with_a_split.png/300px-Inserting_the_word_%27team%27_into_a_Patricia_trie_with_a_split.png)
+
 Splitting with deleveling movements
 ![Splitting with deleveling movements](https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Insert_%27toast%27_into_a_Patricia_trie_with_a_split_and_a_move.png/300px-Insert_%27toast%27_into_a_Patricia_trie_with_a_split_and_a_move.png)
 
@@ -248,7 +251,9 @@ Demonstrating that a leaf node is a part of a given binary hash tree requires co
 
 >Hash trees can be used to verify any kind of data stored, handled and transferred in and between computers. They can help ensure that data blocks received from other peers in a peer-to-peer network are received undamaged and unaltered, and even to check that the other peers do not lie and send fake blocks.
 
-Here we have an example. ![Binary Merkle trie](https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Hash_Tree.svg/310px-Hash_Tree.svg.png)
+Here we have an example. 
+
+![Binary Merkle trie](https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Hash_Tree.svg/310px-Hash_Tree.svg.png)
 
 Note on the example avobe that If L1 changes, it's hash will change, and this will make change the whole path to the root. So it's the perfect way to validate the correctness of any type of data (large ammounts of data also, by using hash functions, the length of the input data doesn't matter).
 
