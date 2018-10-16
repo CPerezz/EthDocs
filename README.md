@@ -1,2 +1,4 @@
 # EthDocs
-Here is where I umpload all the notes i take about the Ethereum world to share with everyone.
+Here is where I upload all the notes I take about the Ethereum world to share with everyone.
+
+Feel free to help and improve them!
