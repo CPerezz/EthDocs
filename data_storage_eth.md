@@ -252,8 +252,7 @@ Demonstrating that a leaf node is a part of a given binary hash tree requires co
 >Hash trees can be used to verify any kind of data stored, handled and transferred in and between computers. They can help ensure that data blocks received from other peers in a peer-to-peer network are received undamaged and unaltered, and even to check that the other peers do not lie and send fake blocks.
 
 Here we have an example. 
-
-![Binary Merkle trie](https://www.google.es/url?sa=i&source=images&cd=&cad=rja&uact=8&ved=2ahUKEwi10q78iYveAhWpwVkKHZCpAGEQjRx6BAgBEAU&url=https%3A%2F%2Fes.wikipedia.org%2Fwiki%2F%25C3%2581rbol_de_Merkle&psig=AOvVaw20MxxIiWQaaiI4oAWdr4zl&ust=1539783309373707)
+![](https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Hash_Tree.svg/1200px-Hash_Tree.svg.png)
 
 Note on the example avobe that If L1 changes, it's hash will change, and this will make change the whole path to the root. So it's the perfect way to validate the correctness of any type of data (large ammounts of data also, by using hash functions, the length of the input data doesn't matter).
 
