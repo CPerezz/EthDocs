@@ -145,7 +145,7 @@ function test() public pure returns(uint256) {
     return 2;
   }
 }
-´´´
+```
 
 If you try to compile this contract, you will get a warning saying you’re referencing `this` within the constructor function, but it will compile. However, if you try to deploy a new instance, it will revert. This is because **it makes no sense to attempt to run code that is not stored yet.** (The EVM will check before calling an external function that the contract's address has bytecode in it. And otherwise, revert). On the other hand, we were able to access the address of the contract: the account exists, but it doesn’t have any code yet.
 
