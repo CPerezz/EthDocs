@@ -1,9 +1,8 @@
 # Iden3's Circom Snarks
 
-[x] Circom basic tutorial.
-[] Advanced Circuits and non mathematical problems prooving.
-[] Solidity integration of the second part.
-
+- [x] Circom basic tutorial.
+- [ ] Advanced Circuits and non mathematical problems prooving.
+- [ ] Solidity integration of the second part.
 
 This just is a collection of notes and explanations that I'll be taking while doing the tuto and further explorations i'll realize by myself.
 
@@ -231,7 +230,7 @@ With the witness generated, we can now generate the proof by doing: `$ snarkjs p
 ![](https://www.boastingbiz.com/wp-content/uploads/Readability1-300x296.png)
 
 - public file contains all of the input signals of the circuit. Looks like this for our example:
-```json
+```
 [
  "33" //Just the output of the product is public.
 ]
