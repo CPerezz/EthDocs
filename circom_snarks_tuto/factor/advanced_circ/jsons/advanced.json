@@ -1,0 +1,74 @@
+{
+ "mainCode": "{\n}\n",
+ "signalName2Idx": {
+  "one": 0,
+  "main.a": 2,
+  "main.b": 3,
+  "main.c": 1
+ },
+ "components": [
+  {
+   "name": "main",
+   "params": {},
+   "template": "Division",
+   "inputSignals": 2
+  }
+ ],
+ "componentName2Idx": {
+  "main": 0
+ },
+ "signals": [
+  {
+   "names": [
+    "one"
+   ],
+   "triggerComponents": []
+  },
+  {
+   "names": [
+    "main.c"
+   ],
+   "triggerComponents": []
+  },
+  {
+   "names": [
+    "main.a"
+   ],
+   "triggerComponents": [
+    0
+   ]
+  },
+  {
+   "names": [
+    "main.b"
+   ],
+   "triggerComponents": [
+    0
+   ]
+  }
+ ],
+ "constraints": [
+  [
+   {
+    "2": "1"
+   },
+   {
+    "3": "1"
+   },
+   {
+    "1": "1"
+   }
+  ]
+ ],
+ "templates": {
+  "Division": "function(ctx) {\n    ctx.setSignal(\"c\", [], bigInt(ctx.getSignal(\"a\", [])).mul( bigInt(ctx.getSignal(\"b\", [])).inverse(__P__) ).mod(__P__));\n    ctx.assert(bigInt(bigInt(ctx.getSignal(\"a\", [])).mul(bigInt(ctx.getSignal(\"b\", []))).mod(__P__)).add(__P__).sub(bigInt(ctx.getSignal(\"c\", []))).mod(__P__), \"0\");\n}\n"
+ },
+ "functions": {},
+ "nPrvInputs": 2,
+ "nPubInputs": 0,
+ "nInputs": 2,
+ "nOutputs": 1,
+ "nVars": 4,
+ "nConstants": 0,
+ "nSignals": 4
+}
