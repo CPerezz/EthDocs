@@ -532,5 +532,25 @@ Note that the first command gives us a different proof than before because our w
 ```
 **Whick means that our witness changes produced proof changes and then call changes were obviously produced too (as we expected) but both of the proofs were verified successfully!!**
 
-TODO: Advanced circuits with SmartContracts Integration.
 
+## More complex circuits.
+
+Before starting with more complex circuits, we will explain better the syntax used on `.circom` circuits.
+
+### Operators.
+- `<== , ==>`: These two operators are used to **connect signals and at the same time impose a constraint**.
+- `<-- , -->`: These two operators assign values to siganls but don't generate any constraints. Generally these operators are used to do make divisions or mod operations. 
+**Generally they always go together with an `===` operator to force a constraint:**
+Here I made a very easy example:
+```java
+template Division() {
+    signal private input a;
+    signal private input b;
+    signal output c;
+    
+    c <-- a/b; //Assigns no constraint, just the value of the division.
+    (a*b) - c === 0; //Note that the constraint must be added with the modulus operation like we are doing here!
+}
+
+component main = Division();
+```
