@@ -628,6 +628,8 @@ And this are our instructions:
 566 LT
 ```
 
+**ALL THE OPCODES OF THE CONTRACT CAN BE SEEN BETTER HERE: https://solmap.zeppelin.solutions/**
+
 The first instructions can be ignored, but at instruction 11 we find our first `JUMPI`. **If it doesn’t jump,** it will continue through instructions 12 to 15 and **end up in a `REVERT`**, which would halt execution. But if it does jump, it will skip these instructions **to the location 16 (hex `0x0010`, which was pushed to the stack at instruction 8)**. **Instruction 16 is a `JUMPDEST`**.
 
 Keep on stepping through the opcodes until the Transaction slider is all the way to the right. A lot of blah-blah just happened, but only in location 68 do we find a `RETURN` opcode (**and a `STOP` opcode in instruction 69, just in case**). This is rather curious. **If you think about it, the control flow of this contract will always end at instructions 15 or 68. We’ve just walked through it and determined that there are no other possible flows**, so what are the remaining instructions for? 
@@ -640,6 +642,7 @@ If you open the deconstruction diagram: https://cdn.rawgit.com/ajsantander/23c03
 
 ## Creation-time code
 
+### Free memory pointer
 Let’s re-take our top-down approach, this time understanding all the instructions as we go along, not skipping any of them. First, let’s focus on instructions 0 to 2, which use the `PUSH1` and `MSTORE` opcodes.
 
 - `PUSH1` simply pushes one byte onto the top of the stack.
@@ -653,3 +656,104 @@ mstore(0x40, 0x80)
 ```
 As we see on the first block: 
 ![](https://cdn-images-1.medium.com/max/800/0*5OMq5NuSFD0tpsNM)
+
+This basically stores the number 0x80 (decimal 128) into memory at position 0x40 (decimal 64). We will see why later.
+
+You might be wondering: what happened to instructions 1 and 3? **PUSH instructions are the only EVM instructions that are actually composed of two or more bytes**. So, `PUSH 80` **is really two instructions.** The mystery is revealed, then: instruction 1 is `0x80` and instruction 3 is `0x40`.
+
+ ### Non-payable check.
+
+![](https://cdn-images-1.medium.com/max/800/0*BLGQ4rprV7YR3fpU)
+
+Here we have a bunch of new opcodes: `CALLVALUE`, `DUP1`, `ISZERO`, `PUSH2`, and `REVERT`. 
+- `CALLVALUE` pushes the amount of wei involved in the creation transaction. 
+- `DUP1` duplicates the first element on the stack.
+- `ISZERO` pushes a 1 to the stack if the topmost value of the stack is zero.
+- `PUSH2` is just like PUSH1 but it can push two bytes to the stack instead of just one.
+- `REVERT` halts execution.
+
+So what’s going on here? In Solidity, we could write this chunk of assembly like this:
+
+`if(msg.value != 0) revert();`
+
+This code was not actually part of our original Solidity source, but **was instead injected by the compiler because we did not declare the constructor as payable**. In the most recent versions of Solidity, **functions that do not explicitly declare themselves as payable cannot receive ether**.
+
+Going back to the assembly code, the `JUMPI` at instruction 11 **will skip instructions 12 through 15 and jump to 16 if there is no ether involved**. Otherwise, **REVERT will execute with both parameters as 0 (meaning that no useful data will be returned)**.
+
+### Retrive constructor parameters
+Thsi involves instructions between the 16th to the 37th as we can see here:
+![](https://cdn-images-1.medium.com/max/800/1*V8dQHrbSylBCfpE6di-DEQ.png)
+
+- The first four instructions (17 to 20):
+- `MLOAD 40` reads whatever is in memory at position 0x40 and pushes that to the stack.
+> `MLOAD (X)`: Reads on memory from position X to x+32 (Remember is a 256-bit VM)
+ If you recall from a little earlier, that should be the number 0x80 we stored on the Free memory pointer section. 
+ On the following instructions we find: 
+  - `PUSH 0x20` (decimal 32) to the stack (instruction 21).
+  - `DUP1` (instruction 23) copies the value to the nth position of the stack starting by the top.
+  - `PUSH 0x0217` (decimal 535) (instruction 24).
+  - `DUP4` Finally duplicates the fourth value (instruction 27), which should be `0x80` again.
+  
+- On instruction 28, CODECOPY is executed, which takes three arguments: target memory position to copy the code to, instruction number to copy from, and number of bytes of code to copy.
+  
+> `CODECOPY(t, f, s)`: Copy `s` bytes from code at position `f` to mem at position `t`
+So, in this case, it targets memory at position 0x80, from byte position 535 in code, 32 bytes of code length.
+**Remember that on the stack we have now: 0x20 (32, the DUP1 one) < 0x0217 (535 as dec PUSH) < 0x80 (DUP4 value copied). Then it has been taken as inputs for CODECOPY OPCODE.**
+
+##### Why are we doing that?¿ 
+
+If you look at the entire disassembled code, there are 566 instructions. So why is this code trying to copy the last 32 bytes of code? **Actually, when deploying a contract whose constructor contains parameters, the arguments are appended to the end of the code as raw hex data.** In this case, the constructor takes one uint256 parameter, so all this code is doing is copying the argument to memory from the value appended at the end of the code. **These 32 instructions don’t make sense as disassembled code, but they do in raw hex: 0x0000000000000000000000000...0000000000000000000002710. Which is, of course, the decimal value 10000 we passed to the constructor when we deployed the contract!**
+
+## Free Memory Pointer.
+The next set of instructions (29 to 35) will be treated here and will resolve the first Free Memory Pointer section. This are the instructions involved:
+```r
+029 DUP2
+030 ADD
+031 PUSH1 40
+033 SWAP1
+034 DUP2
+035 MSTORE
+```
+- `DUP2` Copies the 2nd item of the stack, which is 0x40 if you remember, and copies it on the top of the stack.
+  > `ADD(x, y)`	 just does	`x + y`
+- `ADD` here adds 0x80 plus 0x20 **(Note that were the two Top elements of the Stack. 0x80 came from de DUP4 of last section and 0x20 from the DUP2 of this section)** (This explanation should help to understand the stack situation).
+This `ADD` operation caries us to the number `0xa0`: **that is, they offset the value by 0x20 (32) bytes**. Now we can start making sense of instructions 0 to 2 of the Free Memory pointer.
+>  Solidity keeps track of something called a “free memory pointer”: that is, a place in memory we can use to store stuff, with the guarantee that no one will overwrite it (except us if we make a mistake, of course, using inline assembly or Yul).
+
+**So, since we stored the number 10000 in the old free memory position, we updated the free memory pointer by shifting it 32 bytes forward.** 
+
+We know now that "free memory pointer" or the code `mload(0x40, 0x80)`. is just like say: “We’ll be writing to memory from this point on and keeping a record of the offset, each time we write a new entry.” **Every single function in Solidity, when compiled to EVM bytecode, will initialize this pointer.**
+
+What’s in memory between `0x00` to `0x40`, you may wonder. **Nothing. It’s just a chunk of memory that Solidity reserves for calculating hashes**, which, as we’ll see soon, are necessary for mappings and other types of dynamic data.
+
+Now, on instruction 37, `MLOAD` reads from memory at position `0x40` (pushed on the instruction 36) and basically **downloads our 10000 value from memory into the stack, where it will be fresh and ready for consumption** in the next set of instructions.
+
+This is a common pattern in EVM bytecode generated by Solidity: before a function’s body is executed, the function’s parameters are loaded into the stack (whenever possible), so that the upcoming code can consume them — and that’s exactly what’s going to happen next.
+
+## Constructor body.
+Here we will continue with instructions from 38 to 55.
+![](https://cdn-images-1.medium.com/max/800/1*UuDb5zBQTz_OJXYM6UPp3A.png)
+
+These instructions are nothing more and nothing less than the constructor’s body: that is, the Solidity code:
+```js
+totalSupply_ = _initialSupply;
+balances[msg.sender] =  _initialSupply;
+```
+
+The first four instructions are pretty self-explanatory (38 to 42). 
+- First, `0` is pushed to the stack.
+- Then the second item in the stack is duplicated (that’s our 10000 number).
+- Then the number `0` is duplicated and pushed to the stack, which is the position slot in storage of `totalSupply_`.
+- Now, `SSTORE` can consume the values and still keep 10000 lying around for future use:
+> SStore(p, v) -> storage[p] := v 
+Another way of explaining it will be:
+
+```
+SSTORE(0x00, 0x2710) 
+       |     |
+       |     What to store.
+       Where to store.
+(in storage)
+```
+
+We have just stored the number 10000 in the variable `totalSupply_`.
