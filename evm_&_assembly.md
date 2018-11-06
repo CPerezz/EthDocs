@@ -757,3 +757,67 @@ SSTORE(0x00, 0x2710)
 ```
 
 We have just stored the number 10000 in the variable `totalSupply_`.
+
+The next set of instructions (43 to 54) are a bit disconcerting, but will basically deal with storing 10000 in the balances mapping for the key of `msg.sender`.
+
+---------------------------------------------------------------------
+Before looking at the instructions, we must see how mappings are stored on storage.
+
+> Statically-sized variables (everything except mapping and dynamically-sized array types) are laid out contiguously in storage starting from position 0. Multiple items that need less than 32 bytes are packed into a single storage slot if possible, according to the following rules:
+
+- The first item in a storage slot is stored lower-order aligned.
+- Elementary types use only that many bytes that are necessary to store them.
+- If an elementary type does not fit the remaining part of a storage slot, it is moved to the next storage slot. (This is what causes problems with memmory optimisation, and an example of why we need to write in Solidity thinking always about what the compiler will do.)
+
+- Structs and array data always start a new slot and occupy whole slots (but items inside a struct or array are packed tightly according to these rules).
+
+**Important Warning of the documentation here!**
+
+> When using elements that are **smaller than 32 bytes, your contract’s gas usage may be higher. This is because the EVM operates on 32 bytes at a time**. Therefore, if the element is smaller than that, the **EVM must use more operations in order to reduce the size of the element from 32 bytes to the desired size.**
+
+> **It is only beneficial to use reduced-size arguments if you are dealing with storage values because the compiler will pack multiple elements into one storage slot**, and thus, combine multiple reads or writes into a single operation. When **dealing with function arguments or memory values, there is no inherent benefit because the compiler does not pack** these values.
+
+> Finally, in order to allow the EVM to optimize for this, ensure that you try to order your storage variables and struct members such that they can be packed tightly. **For example, declaring your storage variables in the order of uint128, uint128, uint256 instead of uint128, uint256, uint128, as the former will only take up two slots of storage whereas the latter will take up three.**
+
+Now we have to talk about the rest of variables:
+
+> Due to their **unpredictable size**, mapping and dynamically-sized array types **use a Keccak-256 hash computation to find the starting position of the value or the array data**. These starting positions are always full stack slots.
+
+The mapping or the dynamic array itself occupies an (unfilled) slot in storage at some position `p` according to the above rule (or by recursively applying this rule for mappings to mappings or arrays of arrays). 
+- For a dynamic array, **this slot stores the number of elements in the array** (byte arrays and strings are an exception here, see below). 
+- For a mapping, the slot is unused (but it is needed so that** two equal mappings after each other will use a different hash distribution)**. 
+- **Array data is located at `keccak256(p)`** and.
+- The **value corresponding to a mapping key `k` is located at `keccak256(k . p)`** where . is concatenation. If the value is again a non-elementary type, the positions are found by adding an offset of `keccak256(k . p)`.
+
+- `Bytes` and `string` **store their data in the same slot where also the length is stored** if they are short. In particular: **If the data is at most 31 bytes long, it is stored in the higher-order bytes** (left aligned) and the lowest-order byte stores length * 2. **If it is longer, the main slot stores length * 2 + 1 and the data is stored as usual in keccak256(slot)**.
+
+-----------------------------------------------------------------------------
+
+Movig to the instructions (43 to 54) again, we can see the `CALLER` Opcode.
+
+Now we know that we need to store a mapping, then, looking avobe we can conclude...???
+
+Long story short, **it will concatenate the slot of the mapping value (in this case the number 1,** because it’s the second variable declared in the contract) **with the key used (in this case, msg.sender**, obtained with the opcode CALLER), **then hash that with the SHA3 opcode and use that as the target position in storage. Storage, in the end, is just a simple dictionary or hash table.**
+
+> `CALLER`	-> 	 sender (excluding delegatecall)
+
+- So it puts the sender address (I guess) on the top of the stack.
+- Then `DUP2` dublicates a `0x0` and puts it on top of the stack.
+- Finally, we find the `MSTORE` where address of the sender is saved on the position `0` of the memory. (We already saw that this is a common practice on the evm.)
+- Then `0x01` is pushed on the top of the stack.
+- Also `0x20` which is 32 in dec is pushed on the top of the stack.
+- Then we see `MSTORE` again saving in memory `0x01` on position `0x20` (32).
+- Now appears a new Opcode called `SWAPn` and reorders the stak leaving on the top the `0x2710` (10000 of the input)
+- Finally, the `SHA3` opcode **calculates the Keccak256 hash of whatever is in memory from position 0x00 to position 0x40** — that is, the **concatenation of the mapping’s slot/position with the key used** (As we saw on the section avobe, that's how Solidity stores mappings). This is precisely where the value 10000 will be stored in our mapping:
+```
+SSTORE(hash..., 0x2710)
+       |        |
+       |        What to store.
+       Where to store.
+```
+
+>`SHA3` -> Calculates the Keccak256 hash of whatever is in memory from position 0x00 to position 0x40.
+>`SSTORE(x, y)` -> 	Storage[p] := v, or, store y on x. 
+> `SWAPn` -> Swap topmost and nth stack slot below it.
+
+And that’s it. At this point, the constructor’s body has been fully executed.
