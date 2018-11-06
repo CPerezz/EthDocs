@@ -128,7 +128,7 @@ These opcodes are also supported by the inline assembly of Solidity.
 For dynamic arrays, this slot `(p)` stores the length of the array and its data will be located at the slot number that results from hashing `p(keccak256(p))`. For mappings, this slot is unused and the value corresponding to a key k will be located at `keccak256(k,p)`. Bear in mind that the parameters of `keccak256 (k and p)` are always padded to 32 bytes.
 
 
--------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 # Contract Deployment
 
 The first thing that happens when a new contract is deployed to the Ethereum blockchain is that its account is created (identified).
@@ -158,9 +158,9 @@ So this will be the example of a function call. In our case, Constructor functio
 ![](https://cdn-images-1.medium.com/max/1600/1*I33DzSpkzElt0Cc0OCwsmw.png)
 
 
-## Understanding the deployment behind scenes
+# Understanding the deployment behind scenes
 
-### Compiling a contract
+# Compiling a contract
 When we compile a contract from our Solidity code, we obtain as a result a bunch of bytes (the bytecode of that contract) which looks like:
 ```
 608060405234801561001057600080fd5b5060405160208061021783398101604090815290516000818155338152600160205291909120556101d1806100466000396000f3006080604052600436106100565763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166318160ddd811461005b57806370a0823114610082578063a9059cbb146100b0575b600080fd5b34801561006757600080fd5b506100706100f5565b60408051918252519081900360200190f35b34801561008e57600080fd5b5061007073ffffffffffffffffffffffffffffffffffffffff600435166100fb565b3480156100bc57600080fd5b506100e173ffffffffffffffffffffffffffffffffffffffff60043516602435610123565b604080519115158252519081900360200190f35b60005490565b73ffffffffffffffffffffffffffffffffffffffff1660009081526001602052604090205490565b600073ffffffffffffffffffffffffffffffffffffffff8316151561014757600080fd5b3360009081526001602052604090205482111561016357600080fd5b503360009081526001602081905260408083208054859003905573ffffffffffffffffffffffffffffffffffffffff85168352909120805483019055929150505600a165627a7a72305820a5d999f4459642872a29be93a490575d345e40fc91a7cccb2cf29c88bcdaf3be0029
@@ -200,7 +200,7 @@ contract BasicToken {
 ```
 When we send this bytecode to deploy a contract. This transaction is sent to the `0x0` address, and **as a result, a new contract instance is created with it's own address and code.** It'll be reviewed in depth later.
 
-### Dissasembling the bytecode
+# Dissasembling the bytecode
 With tools like Remix, we can make the bytecode more "Readable" by looking at the Debbugger tab.
 
 The previous bytecode will be associated to this Instructions:
@@ -821,3 +821,45 @@ SSTORE(hash..., 0x2710)
 > `SWAPn` -> Swap topmost and nth stack slot below it.
 
 And that’s it. At this point, the constructor’s body has been fully executed.
+
+## Copy Runtime code to memory.
+
+![](https://cdn-images-1.medium.com/max/800/1*yGXyjnCMUq6K-683jHZ6SA.png)
+
+In instructions 56 to 65, we’re performing a code copy again. Only this time, we’re not copying the last 32 bytes of the code to memory; we’re copying 0x01d1 (decimal 465) bytes starting from position 0x0046 (decimal 70) into memory at position 0. 
+
+We can see it analyzing the stack:
+- `PUSH2` pushed 2 bytes to the top of the stack: `0x01d1` (465 dec).
+- `DUP1` duplicated the `0x01d1` value (I don't know why because it already was on the top because of the `PUSH2`).
+- `PUSH2` pushed `0x0046` (70 dec) to the top of the stack.
+- `PUSH1` pushed a `0x00` byte to the top of the stack.
+- `CODECOPY` opcode was executed doing the following:
+```
+CODECOPY(0x00,0x46,0x01d1)
+         |    |    |
+         |    |    Ammount of bytes to copy.
+         |    Instruction/Position to start copy code.
+         Position to copy on memory.
+```
+**The runtime bytecode is contained in those 465 bytes**. This is **the part of the code that will be saved in the blockchain as the contract’s runtime code**, which will be the **code that will be executed every time someone or something interacts with the contract**. 
+
+## Return Runtime Code
+What instructions 66 to 69 do? The code that we copied to memory is returned because of them.
+![](https://cdn-images-1.medium.com/max/800/1*gxYX1LuP_NU8hYzrR9jgMQ.png)
+
+> RETURN(p, s)	->	End execution, return data mem[p...(p+s))
+
+`RETURN` grabs the code copied to memory and hands it over to the EVM. **If this creation code is executed in the context of a transaction to the `0x0` address**, the **EVM will execute the code and store the return value as the created contract’s runtime code.**
+
+That’s it! By now, our `BasicToken` contract instance will be created and deployed with its initial state and runtime code ready for use. But, to which addres?? 
+
+> The address for an Ethereum contract **is deterministically computed from the address of its creator (sender)** and **how many transactions the creator has sent (nonce)**. The sender and nonce are **RLP encoded and then hashed with Keccak-256**. The result ends being the address of the contract.
+
+See that all the EVM bytecode structures we analyzed are generic, except the one highlighted in purple: 
+![](https://cdn-images-1.medium.com/max/800/1*UuDb5zBQTz_OJXYM6UPp3A.png)
+That is, they will be generic in creation-time bytecode generated by the Solidity compiler. **What will differ from constructor to constructor is just the purple part — the CONSTRUCTORS FUNCTION's actual body. But the rest will always be the same (unles we have payable constructors).**
+The structure that fetches parameters embedded at the end of the bytecode, as well as the structures that copy the runtime code and return it, **can be considered boilerplate** code and **generic EVM opcode structures**.
+
+# Function selector.
+If you look at the deconstruction diagram, we’re going to start by looking at the second big split block titled BasicToken.evm (runtime).
+
